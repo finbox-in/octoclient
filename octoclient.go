@@ -11,19 +11,18 @@ import (
 /*
 Usage:
   - Create instance of Octo-Client once
-  - call the service-invoke using the clientID, serviceID, payload & other params and feature
+  - call the service-invoke using the clientID, payload.
+  - The other features like pathParams will be included in payload
 */
 type OctoPayload struct {
-	ClientID  uuid.UUID              `json:"client_id`
-	ServiceID uuid.UUID              `json:"service_id`
+	ServiceID uuid.UUID              `json:"serviceID`
 	Data      map[string]interface{} `json:"data"`
 }
 
 type OctoResponse struct {
-	Message   string                 `json:"message"`
-	RequestID uuid.UUID              `json:"request_id"`
+	Message   string                 `json:"msg"`
+	RequestID uuid.UUID              `json:"requestId"`
 	Data      map[string]interface{} `json:"data"`
-	MetaData  map[string]interface{} `json:"meta_data"`
 }
 
 type OctoClient struct {
@@ -32,7 +31,6 @@ type OctoClient struct {
 }
 
 func New(baseUrl string) *OctoClient {
-	//TODO: trim the base url right so that it can be used with other endpoints
 	baseUrl = trimTrailingSlash(baseUrl)
 	return &OctoClient{
 		HTTPClient: &http.Client{},
@@ -44,15 +42,16 @@ func (o *OctoClient) getHttpClient() http.Client {
 	return *o.HTTPClient
 }
 
-func (o *OctoClient) ServiceInvoke(serviceID, clientID string, payload OctoPayload) (OctoResponse, error) {
+func (o *OctoClient) ServiceInvoke(clientID string, payload OctoPayload) (OctoResponse, error) {
 
 	// TODO: clientID will be replaced with token in coming future
 	apiEndpoint := "/service/invoke"
 	callingUrl := o.BaseURL + apiEndpoint
 	method := "POST"
+	contentType := "application/json"
 	var response OctoResponse
 
-	flag := IsValidID(serviceID) && IsValidID(clientID)
+	flag := IsValidID(payload.ServiceID.String())&& IsValidID(clientID)
 	if !flag {
 		return response, errors.New("invalid id entered")
 	}
@@ -68,7 +67,7 @@ func (o *OctoClient) ServiceInvoke(serviceID, clientID string, payload OctoPaylo
 		return response, err
 	}
 	req.Header.Add("clientId", clientID)
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", contentType)
 
 	res, err := o.HTTPClient.Do(req)
 	if err != nil {
@@ -80,7 +79,7 @@ func (o *OctoClient) ServiceInvoke(serviceID, clientID string, payload OctoPaylo
 	if err != nil {
 		return response, err
 	}
-	// Handle if return type is HTML
+	// TODO: Handling if return type !json
 	response, err = ConvertByteToStruct(body)
 	if err != nil {
 		return response, err
