@@ -1,4 +1,4 @@
-module octo-client
+module octoclient
 
 go 1.20
 
