@@ -1,4 +1,4 @@
-module octoclient
+module github.com/finbox-in/octoclient
 
 go 1.20
 
