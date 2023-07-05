@@ -1,7 +1,7 @@
 package octoclient
 
 import (
-	"errors"
+	"context"
 	"io/ioutil"
 	"net/http"
 
@@ -22,8 +22,9 @@ Usage:
   - The other features like pathParams will be included in payload
 */
 type OctoPayload struct {
-	ServiceID uuid.UUID              `json:"serviceID`
-	Data      map[string]interface{} `json:"data"`
+	ServiceID   string                 `json:"serviceID`
+	QueryParams map[string]interface{} `json:"queryParameters"`
+	Data        map[string]interface{} `json:"data"`
 }
 
 type OctoResponse struct {
@@ -35,22 +36,21 @@ type OctoResponse struct {
 type OctoClient struct {
 	HTTPClient *http.Client
 	baseURL    string
-	clientID   uuid.UUID
+	token      string
 }
 
-type OctoConfig struct {
+type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
-	BaseURL  string
-	ClientID string // Use AccessToken in place of clientID
+	BaseURL string
+	Token   string // Use AccessToken in place of clientID
 }
 
-func New(options OctoConfig) *OctoClient {
+func New(options Options) *OctoClient {
 	baseURL := trimTrailingSlash(options.BaseURL)
-	clientID, _ := uuid.Parse(options.ClientID)
 	return &OctoClient{
 		HTTPClient: &http.Client{},
 		baseURL:    baseURL,
-		clientID:   clientID,
+		token:      options.Token,
 	}
 }
 
@@ -58,44 +58,42 @@ func (o *OctoClient) getHttpClient() http.Client {
 	return *o.HTTPClient
 }
 
-func (o *OctoClient) ServiceInvoke(payload OctoPayload) (OctoResponse, error) {
+func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
 
-	flag := IsValidID(payload.ServiceID.String()) && IsValidID(o.clientID.String())
-	if !flag {
-		return OctoResponse{}, errors.New("invalid id entered")
-	}
-
 	finalPayload, err := ConvertStructToJSON(payload)
 	if err != nil {
-		return OctoResponse{}, err
+		return nil, err
 	}
-
-	req, err := http.NewRequest(method, callingUrl, finalPayload)
-
+	var req *http.Request
+	if ctx == nil {
+		req, err = http.NewRequestWithContext(context.TODO(), method, callingUrl, finalPayload)
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, callingUrl, finalPayload)
+	}
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-	req.Header.Add("clientId", o.clientID.String())
+	req.Header.Add("clientId", o.token)
 	req.Header.Add("Content-Type", contentType)
 
 	res, err := o.HTTPClient.Do(req)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 	// TODO: Handling if return type !json
 	response, err = ConvertByteToStruct(body)
 	if err != nil {
-		return OctoResponse{}, err
+		return nil, err
 	}
 
-	return response, nil
+	return &response, nil
 }

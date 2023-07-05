@@ -3,8 +3,6 @@ package octoclient
 import (
 	"encoding/json"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 func ConvertStructToJSON(obj OctoPayload) (*strings.Reader, error) {
@@ -27,9 +25,4 @@ func ConvertByteToStruct(body []byte) (OctoResponse, error) {
 func trimTrailingSlash(url string) string {
 	forwardSlash := "/"
 	return strings.TrimSuffix(url, forwardSlash)
-}
-
-func IsValidID(id string) bool {
-	_, err := uuid.Parse(id)
-	return err == nil
 }
