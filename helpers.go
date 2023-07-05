@@ -15,7 +15,6 @@ func ConvertStructToJSON(obj OctoPayload) (*strings.Reader, error) {
 	return strings.NewReader(string(jsonData)), nil
 }
 
-
 func ConvertByteToStruct(body []byte) (OctoResponse, error) {
 	var response OctoResponse
 	err := json.Unmarshal(body, &response)
@@ -26,11 +25,11 @@ func ConvertByteToStruct(body []byte) (OctoResponse, error) {
 }
 
 func trimTrailingSlash(url string) string {
-	forwardSlash :="/"
+	forwardSlash := "/"
 	return strings.TrimSuffix(url, forwardSlash)
 }
 
-func IsValidID(clientID string) bool {
-	_, err := uuid.Parse(clientID)
+func IsValidID(id string) bool {
+	_, err := uuid.Parse(id)
 	return err == nil
 }

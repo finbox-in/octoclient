@@ -8,10 +8,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	apiEndpoint = "/service/invoke"
+	method      = "POST"
+	contentType = "application/json"
+)
+
 /*
 Usage:
-  - Create instance of Octo-Client once
-  - call the service-invoke using the clientID, payload.
+  - Create object of OctoConfig with clientID/access-token, baseURL of Octopus & others
+  - Create instance of Octo-Client once using this object
+  - call the service-invoke using the payload.
   - The other features like pathParams will be included in payload
 */
 type OctoPayload struct {
@@ -27,14 +34,23 @@ type OctoResponse struct {
 
 type OctoClient struct {
 	HTTPClient *http.Client
-	BaseURL    string
+	baseURL    string
+	clientID   uuid.UUID
 }
 
-func New(baseUrl string) *OctoClient {
-	baseUrl = trimTrailingSlash(baseUrl)
+type OctoConfig struct {
+	// Other options in http.Client will be added here e.g, custom timeout
+	BaseURL  string
+	ClientID string // Use AccessToken in place of clientID
+}
+
+func New(options OctoConfig) *OctoClient {
+	baseURL := trimTrailingSlash(options.BaseURL)
+	clientID, _ := uuid.Parse(options.ClientID)
 	return &OctoClient{
 		HTTPClient: &http.Client{},
-		BaseURL:    baseUrl,
+		baseURL:    baseURL,
+		clientID:   clientID,
 	}
 }
 
@@ -42,23 +58,19 @@ func (o *OctoClient) getHttpClient() http.Client {
 	return *o.HTTPClient
 }
 
-func (o *OctoClient) ServiceInvoke(clientID string, payload OctoPayload) (OctoResponse, error) {
+func (o *OctoClient) ServiceInvoke(payload OctoPayload) (OctoResponse, error) {
 
-	// TODO: clientID will be replaced with token in coming future
-	apiEndpoint := "/service/invoke"
-	callingUrl := o.BaseURL + apiEndpoint
-	method := "POST"
-	contentType := "application/json"
+	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
 
-	flag := IsValidID(payload.ServiceID.String())&& IsValidID(clientID)
+	flag := IsValidID(payload.ServiceID.String()) && IsValidID(o.clientID.String())
 	if !flag {
-		return response, errors.New("invalid id entered")
+		return OctoResponse{}, errors.New("invalid id entered")
 	}
 
 	finalPayload, err := ConvertStructToJSON(payload)
 	if err != nil {
-		return response, err
+		return OctoResponse{}, err
 	}
 
 	req, err := http.NewRequest(method, callingUrl, finalPayload)
@@ -66,7 +78,7 @@ func (o *OctoClient) ServiceInvoke(clientID string, payload OctoPayload) (OctoRe
 	if err != nil {
 		return response, err
 	}
-	req.Header.Add("clientId", clientID)
+	req.Header.Add("clientId", o.clientID.String())
 	req.Header.Add("Content-Type", contentType)
 
 	res, err := o.HTTPClient.Do(req)
@@ -82,7 +94,7 @@ func (o *OctoClient) ServiceInvoke(clientID string, payload OctoPayload) (OctoRe
 	// TODO: Handling if return type !json
 	response, err = ConvertByteToStruct(body)
 	if err != nil {
-		return response, err
+		return OctoResponse{}, err
 	}
 
 	return response, nil
