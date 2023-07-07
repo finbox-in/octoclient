@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/finbox-in/octoclient"
 )
 
-var octoConfig = octoclient.Options{
+var options = octoclient.Options{
 	BaseURL: "", // Octopus URL ( UAT or Prod provided )
 	Token:   "", // Token or ClientID provided
 }
@@ -22,9 +23,9 @@ func main() {
 		},
 	}
 
-	var octoClient = octoclient.New(octoConfig)
+	var octoClient = octoclient.New(options)
 
-	response, err := octoClient.ServiceInvoke(nil, payload)
+	response, err := octoClient.ServiceInvoke(context.TODO(), payload)
 	if err != nil {
 		fmt.Println("err", err)
 	}
