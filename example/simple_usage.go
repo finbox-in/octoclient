@@ -8,8 +8,9 @@ import (
 )
 
 var options = octoclient.Options{
-	BaseURL: "", // Octopus URL ( UAT or Prod provided )
-	Token:   "", // Token or ClientID provided
+	BaseURL:       "", // Octopus URL ( UAT or Prod provided )
+	Token:         "", // Token or ClientID provided
+	Authorization: "", //Auth token provided by Octopus
 }
 
 func main() {

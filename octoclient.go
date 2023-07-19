@@ -34,23 +34,26 @@ type OctoResponse struct {
 }
 
 type OctoClient struct {
-	HTTPClient *http.Client
-	baseURL    string
-	token      string
+	HTTPClient    *http.Client
+	baseURL       string
+	token         string
+	authorization string
 }
 
 type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
-	BaseURL string
-	Token   string // Use AccessToken in place of clientID
+	BaseURL       string
+	Token         string // Use AccessToken in place of clientID
+	Authorization string // Auth Token
 }
 
 func New(options Options) *OctoClient {
 	baseURL := trimTrailingSlash(options.BaseURL)
 	return &OctoClient{
-		HTTPClient: &http.Client{},
-		baseURL:    baseURL,
-		token:      options.Token,
+		HTTPClient:    &http.Client{},
+		baseURL:       baseURL,
+		token:         options.Token,
+		authorization: options.Authorization,
 	}
 }
 
@@ -78,6 +81,7 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 	}
 	req.Header.Add("clientId", o.token)
 	req.Header.Add("Content-Type", contentType)
+	req.Header.Add("Authorization", o.authorization)
 
 	res, err := o.HTTPClient.Do(req)
 	if err != nil {
