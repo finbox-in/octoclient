@@ -15,6 +15,7 @@ var options = octoclient.Options{
 
 func main() {
 	serviceID := "" // serviceID provided
+	requestID := "" // requestID gotten from an external service (if any)
 
 	//OctoClient: Create a sample payload
 	var payload = octoclient.OctoPayload{
@@ -22,6 +23,7 @@ func main() {
 		Data: map[string]interface{}{
 			"key": "value",
 		},
+		RequestID: requestID,
 	}
 
 	var octoClient = octoclient.New(options)

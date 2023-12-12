@@ -25,6 +25,7 @@ type OctoPayload struct {
 	ServiceID   string                 `json:"serviceID`
 	QueryParams map[string]interface{} `json:"queryParameters"`
 	Data        map[string]interface{} `json:"data"`
+	RequestID   string                 `json:"requestID"` // Acts as unique identifier for each request.
 }
 
 type OctoResponse struct {
