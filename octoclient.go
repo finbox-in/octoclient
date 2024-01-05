@@ -49,7 +49,7 @@ type OctoTextField struct {
 	FieldName  string
 	FieldValue string
 }
-type OctoPayloadFile struct {
+type OctoPayloadForm struct {
 	ServiceID  string          `json:"serviceID"`
 	TextFields []OctoTextField `json:"textFields"`
 	FileFields []OctoFileField `json:"fileFields"`
@@ -130,7 +130,7 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 	return &response, nil
 }
 
-func (o *OctoClient) ServiceInvokeFile(ctx context.Context, payload OctoPayloadFile) (*OctoResponse, error) {
+func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadForm) (*OctoResponse, error) {
 	callingUrl := o.baseURL + apiEndpointFile
 
 	var requestBody bytes.Buffer
