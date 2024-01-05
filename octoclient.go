@@ -38,6 +38,7 @@ type OctoPayload struct {
 	QueryParams    []OctoQueryParams      `json:"queryParameters"`
 	DynamicHeaders []OctoHeaders          `json:"dynamicHeaders"`
 	Data           map[string]interface{} `json:"data"`
+	RequestID      string                 `json:"requestID"` // Acts as unique identifier for each request.
 }
 
 type OctoFileField struct {
