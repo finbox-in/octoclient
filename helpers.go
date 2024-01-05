@@ -46,10 +46,8 @@ func processFileFields(fileFields []OctoFileField, multiPartWriter *multipart.Wr
 		errChannels[i] = make(chan error)
 	}
 
-	iteration := 0
-
-	for _, fileField := range fileFields {
-		errChan := errChannels[iteration]
+	for iter, fileField := range fileFields {
+		errChan := errChannels[iter]
 		go func(fieldName string, filePath string, errChan chan error) {
 			file, err := os.Open(filePath)
 			if err != nil {
@@ -72,8 +70,6 @@ func processFileFields(fileFields []OctoFileField, multiPartWriter *multipart.Wr
 			}
 			errChan <- nil
 		}(fileField.FieldName, fileField.FilePath, errChan)
-
-		iteration++
 	}
 	for i := 0; i < totalFileFields; i++ {
 		err := <-errChannels[i]
