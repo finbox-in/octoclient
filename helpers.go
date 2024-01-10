@@ -35,6 +35,9 @@ func processTextFields(textFields []OctoTextField, multiPartWriter *multipart.Wr
 	var err error
 	for _, textField := range textFields {
 		err = multiPartWriter.WriteField(textField.FieldName, textField.FieldValue)
+		if err != nil {
+			return err
+		}
 	}
 	return err
 }
