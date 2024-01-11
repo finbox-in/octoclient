@@ -43,40 +43,21 @@ func processTextFields(textFields []OctoTextField, multiPartWriter *multipart.Wr
 }
 
 func processFileFields(fileFields []OctoFileField, multiPartWriter *multipart.Writer) error {
-	totalFileFields := len(fileFields)
-	errChannels := make([]chan error, totalFileFields)
-	for i := range errChannels {
-		errChannels[i] = make(chan error)
-		defer close(errChannels[i])
-	}
+	for _, fileField := range fileFields {
+		file, err := os.Open(fileField.FilePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		fileName := filepath.Base(fileField.FilePath)
 
-	for iter, fileField := range fileFields {
-		errChan := errChannels[iter]
-		go func(fieldName string, filePath string, errChan chan error) {
-			file, err := os.Open(filePath)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			defer file.Close()
-			fileName := filepath.Base(filePath)
+		fileWriter, err := multiPartWriter.CreateFormFile(fileField.FieldName, fileName)
+		if err != nil {
 
-			fileWriter, err := multiPartWriter.CreateFormFile(fieldName, fileName)
-			if err != nil {
-				errChan <- err
-				return
-			}
+			return err
+		}
 
-			_, err = io.Copy(fileWriter, file)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			errChan <- nil
-		}(fileField.FieldName, fileField.FilePath, errChan)
-	}
-	for i := 0; i < totalFileFields; i++ {
-		err := <-errChannels[i]
+		_, err = io.Copy(fileWriter, file)
 		if err != nil {
 			return err
 		}
