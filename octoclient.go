@@ -24,19 +24,19 @@ Usage:
   - call the service-invoke using the payload.
   - The other features like pathParams will be included in payload
 */
-type OctoQueryParams struct {
+type OctoQueryParam struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
-type OctoHeaders struct {
+type OctoHeader struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 type OctoPayload struct {
 	ServiceID      string                 `json:"serviceID"`
-	QueryParams    []OctoQueryParams      `json:"queryParameters"`
-	DynamicHeaders []OctoHeaders          `json:"dynamicHeaders"`
+	QueryParams    []OctoQueryParam       `json:"queryParameters"`
+	DynamicHeaders []OctoHeader           `json:"dynamicHeaders"`
 	Data           map[string]interface{} `json:"data"`
 	RequestID      string                 `json:"requestID"` // Acts as unique identifier for each request.
 }
