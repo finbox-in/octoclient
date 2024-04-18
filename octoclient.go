@@ -29,16 +29,22 @@ type OctoQueryParam struct {
 	Value string `json:"value"`
 }
 
+type OctoURLParam struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type OctoHeader struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 type OctoPayload struct {
-	ServiceID      string                 `json:"serviceID"`
-	QueryParams    []OctoQueryParam       `json:"queryParameters"`
-	DynamicHeaders []OctoHeader           `json:"dynamicHeaders"`
-	Data           map[string]interface{} `json:"data"`
-	RequestID      string                 `json:"requestID"` // Acts as unique identifier for each request.
+	ServiceID        string                 `json:"serviceID"`
+	QueryParams      []OctoQueryParam       `json:"queryParameters"`
+	DynamicURLParams []OctoURLParam         `json:"dynamicURLParams"`
+	DynamicHeaders   []OctoHeader           `json:"dynamicHeaders"`
+	Data             map[string]interface{} `json:"data"`
+	RequestID        string                 `json:"requestID"` // Acts as unique identifier for each request.
 }
 
 type OctoFileField struct {
