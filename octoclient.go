@@ -76,7 +76,7 @@ type OctoClient struct {
 }
 
 type OctoVendorSwitch struct {
-	Enable         bool   `json:"isActive"`
+	Enabled        bool   `json:"enabled"`
 	VendorConfigID string `json:"vendorConfigId"`
 }
 
