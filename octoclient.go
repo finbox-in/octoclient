@@ -45,6 +45,7 @@ type OctoPayload struct {
 	DynamicHeaders   []OctoHeader           `json:"dynamicHeaders"`
 	Data             map[string]interface{} `json:"data"`
 	RequestID        string                 `json:"requestID"` // Acts as unique identifier for each request.
+	Switch           OctoVendorSwitch       `json:"vendorSwitch"`
 }
 
 type OctoFileField struct {
@@ -72,6 +73,11 @@ type OctoClient struct {
 	baseURL       string
 	token         string
 	authorization string
+}
+
+type OctoVendorSwitch struct {
+	Enabled        bool   `json:"enabled"`
+	VendorConfigID string `json:"vendorConfigId"`
 }
 
 type Options struct {
