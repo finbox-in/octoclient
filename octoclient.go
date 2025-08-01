@@ -46,16 +46,20 @@ type OctoPayload struct {
 	Data             map[string]interface{} `json:"data"`
 	RequestID        string                 `json:"requestID"` // Acts as unique identifier for each request.
 	Switch           OctoVendorSwitch       `json:"vendorSwitch"`
+	CallbackURL      string                 `json:"callbackURL"`
+	CallbackMetadata map[string]interface{} `json:"callbackMetadata"`
 }
 
 type OctoPayloadGeneric struct {
-	ServiceID        string           `json:"serviceID"`
-	QueryParams      []QueryParams    `json:"queryParameters"`
-	DynamicURLParams []URLParams      `json:"dynamicURLParams"`
-	DynamicHeaders   []DynamicHeaders `json:"dynamicHeaders"`
-	Data             interface{}      `json:"data"`
-	RequestID        string           `json:"requestID"` // Acts as unique identifier for each request.
-	Switch           OctoVendorSwitch `json:"vendorSwitch"`
+	ServiceID        string                 `json:"serviceID"`
+	QueryParams      []QueryParams          `json:"queryParameters"`
+	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
+	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
+	Data             interface{}            `json:"data"`
+	RequestID        string                 `json:"requestID"` // Acts as unique identifier for each request.
+	Switch           OctoVendorSwitch       `json:"vendorSwitch"`
+	CallbackURL      string                 `json:"callbackURL"`
+	CallbackMetadata map[string]interface{} `json:"callbackMetadata"`
 }
 
 type OctoFileField struct {
