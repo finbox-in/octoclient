@@ -83,14 +83,22 @@ type OctoVendorSwitch struct {
 type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
 	BaseURL       string
-	Token         string // Use AccessToken in place of clientID
-	Authorization string // Auth Token
+	Token         string       // Use AccessToken in place of clientID
+	Authorization string       // Auth Token
+	HTTPClient    *http.Client // Pass custom client if required
 }
 
 func New(options Options) *OctoClient {
 	baseURL := trimTrailingSlash(options.BaseURL)
+
+	// Use provided client if exists, otherwise use default
+	client := options.HTTPClient
+	if client == nil {
+		client = &http.Client{}
+	}
+
 	return &OctoClient{
-		HTTPClient:    &http.Client{},
+		HTTPClient:    client,
 		baseURL:       baseURL,
 		token:         options.Token,
 		authorization: options.Authorization,
