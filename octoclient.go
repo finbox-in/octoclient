@@ -3,11 +3,14 @@ package octoclient
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 
+	"github.com/finbox-in/octoclient/internalhttp"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -97,33 +100,42 @@ type OctoVendorSwitch struct {
 type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
 	BaseURL       string
-	Token         string       // Use AccessToken in place of clientID
-	Authorization string       // Auth Token
-	HTTPClient    *http.Client // Pass custom client if required
+	Token         string // Use AccessToken in place of clientID
+	Authorization string // Auth Token
 }
 
 func New(options Options) *OctoClient {
 	baseURL := trimTrailingSlash(options.BaseURL)
-
-	// Use provided client if exists, otherwise use default
-	client := options.HTTPClient
-	if client == nil {
-		client = &http.Client{}
-	}
-
 	return &OctoClient{
-		HTTPClient:    client,
+		HTTPClient:    &http.Client{},
 		baseURL:       baseURL,
 		token:         options.Token,
 		authorization: options.Authorization,
 	}
 }
 
-func (o *OctoClient) getHttpClient() http.Client {
-	return *o.HTTPClient
+func (o *OctoClient) getHttpClient(resource string) *http.Client {
+	baseClientCopy := *o.HTTPClient
+
+	// Configure otelhttp
+	baseClientCopy.Transport = otelhttp.NewTransport(
+		http.DefaultTransport,
+		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+			return "ext_" + resource
+		}),
+	)
+	var wrappedClient = internalhttp.WrapClientWithContextInterceptor(&baseClientCopy)
+
+	return wrappedClient
 }
 
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
+	client := o.HTTPClient
+	serviceCtx := internalhttp.GetServiceContextFromGoContext(ctx)
+	if serviceCtx != nil {
+		resource := serviceCtx.Attributes["resource"].(string)
+		client = o.getHttpClient(resource)
+	}
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
@@ -145,13 +157,13 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("Authorization", o.authorization)
 
-	res, err := o.HTTPClient.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
