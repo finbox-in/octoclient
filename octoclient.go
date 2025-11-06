@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 
+	"github.com/finbox-in/data-dancer/logger"
 	"github.com/finbox-in/octoclient/internalhttp"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -132,6 +133,13 @@ func (o *OctoClient) getHttpClient(resource string) *http.Client {
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
 	client := o.HTTPClient
 	serviceCtx := internalhttp.GetServiceContextFromGoContext(ctx)
+
+	logger.Log.WithFields(map[string]interface{}{
+		"function":   "ServiceInvoke",
+		"Attributes": serviceCtx.Attributes,
+		"Baggage":    serviceCtx.Baggage,
+	}).Println("context contents in ServiceInvoke")
+
 	if serviceCtx != nil {
 		resource := serviceCtx.Attributes["resource"].(string)
 		client = o.getHttpClient(resource)
