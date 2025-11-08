@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
-	"log"
 	"mime/multipart"
 	"net/http"
 
@@ -133,16 +132,6 @@ func (o *OctoClient) getHttpClient(resource string) *http.Client {
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
 	client := o.HTTPClient
 	serviceCtx := internalhttp.GetServiceContextFromGoContext(ctx)
-
-	if serviceCtx == nil {
-		log.Println("context contents in ServiceInvoke | serviceCtx is nil")
-	} else {
-		log.Printf(
-			"context contents in ServiceInvoke | Attributes=%+v | Baggage=%+v",
-			serviceCtx.Attributes,
-			serviceCtx.Baggage,
-		)
-	}
 
 	if serviceCtx != nil {
 		resource := serviceCtx.Attributes["resource"].(string)
