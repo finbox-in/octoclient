@@ -120,9 +120,6 @@ func (o *OctoClient) getHttpClient(resource string) *http.Client {
 	// Configure otelhttp
 	baseClientCopy.Transport = otelhttp.NewTransport(
 		http.DefaultTransport,
-		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-			return "ext_" + resource
-		}),
 	)
 	var wrappedClient = internalhttp.WrapClientWithContextInterceptor(&baseClientCopy)
 
