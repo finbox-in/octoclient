@@ -10,7 +10,6 @@ import (
 
 	"github.com/finbox-in/octoclient/internalhttp"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -118,9 +117,7 @@ func (o *OctoClient) getHttpClient(resource string) *http.Client {
 	baseClientCopy := *o.HTTPClient
 
 	// Configure otelhttp
-	baseClientCopy.Transport = otelhttp.NewTransport(
-		http.DefaultTransport,
-	)
+	baseClientCopy.Transport = http.DefaultTransport
 	var wrappedClient = internalhttp.WrapClientWithContextInterceptor(&baseClientCopy)
 
 	return wrappedClient
