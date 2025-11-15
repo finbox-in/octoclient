@@ -113,24 +113,15 @@ func New(options Options) *OctoClient {
 	}
 }
 
-func (o *OctoClient) getHttpClient(resource string) *http.Client {
+func (o *OctoClient) getHttpClient() *http.Client {
 	baseClientCopy := *o.HTTPClient
-
-	// Configure otelhttp
-	baseClientCopy.Transport = http.DefaultTransport
-	var wrappedClient = internalhttp.WrapClientWithContextInterceptor(&baseClientCopy)
+	wrappedClient := internalhttp.WrapClientWithContextInterceptor(&baseClientCopy)
 
 	return wrappedClient
 }
 
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
-	client := o.HTTPClient
-	serviceCtx := internalhttp.GetServiceContextFromGoContext(ctx)
-
-	if serviceCtx != nil {
-		resource := serviceCtx.Attributes["resource"].(string)
-		client = o.getHttpClient(resource)
-	}
+	client := o.getHttpClient()
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
