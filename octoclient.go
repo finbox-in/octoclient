@@ -8,7 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"github.com/finbox-in/octoclient/internalhttp"
+	"github.com/finbox-in/octoclient/servicecontext"
 	"github.com/google/uuid"
 )
 
@@ -115,7 +115,7 @@ func New(options Options) *OctoClient {
 
 func (o *OctoClient) getHttpClient() *http.Client {
 	baseClientCopy := *o.HTTPClient
-	wrappedClient := internalhttp.WrapClientWithContextInterceptor(&baseClientCopy)
+	wrappedClient := servicecontext.WrapClientWithContextInterceptor(&baseClientCopy)
 
 	return wrappedClient
 }

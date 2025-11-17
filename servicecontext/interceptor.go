@@ -1,4 +1,4 @@
-package internalhttp
+package servicecontext
 
 import (
 	"net/http"
