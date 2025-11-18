@@ -3,10 +3,12 @@ package octoclient
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 
+	"github.com/finbox-in/octoclient/servicecontext"
 	"github.com/google/uuid"
 )
 
@@ -111,11 +113,15 @@ func New(options Options) *OctoClient {
 	}
 }
 
-func (o *OctoClient) getHttpClient() http.Client {
-	return *o.HTTPClient
+func (o *OctoClient) getHttpClient() *http.Client {
+	baseClientCopy := *o.HTTPClient
+	wrappedClient := servicecontext.WrapClientWithContextInterceptor(&baseClientCopy)
+
+	return wrappedClient
 }
 
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
+	client := o.getHttpClient()
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
@@ -137,13 +143,13 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("Authorization", o.authorization)
 
-	res, err := o.HTTPClient.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
