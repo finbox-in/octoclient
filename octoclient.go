@@ -79,9 +79,12 @@ type OctoPayloadForm struct {
 }
 
 type OctoResponse struct {
-	Message   string                 `json:"msg"`
-	RequestID uuid.UUID              `json:"requestId"`
-	Data      map[string]interface{} `json:"data"`
+	Message         string                 `json:"msg"`
+	RequestID       uuid.UUID              `json:"requestId"`
+	Data            map[string]interface{} `json:"data"`
+	RequestHeaders  http.Header            `json:"-"`
+	ResponseHeaders http.Header            `json:"-"`
+	HTTPStatusCode  int                    `json:"-"`
 }
 
 type OctoClient struct {
@@ -158,6 +161,10 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 	if err != nil {
 		return nil, err
 	}
+
+	response.RequestHeaders = req.Header.Clone()
+	response.ResponseHeaders = res.Header.Clone()
+	response.HTTPStatusCode = res.StatusCode
 
 	return &response, nil
 }
