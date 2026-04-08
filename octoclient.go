@@ -10,6 +10,7 @@ import (
 
 	"github.com/finbox-in/octoclient/servicecontext"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -40,8 +41,10 @@ type DynamicHeaders struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
 type OctoPayload struct {
 	ServiceID        string                 `json:"serviceID"`
+	ServiceName      string                 `json:"serviceName"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
 	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
@@ -68,10 +71,12 @@ type OctoFileField struct {
 	FieldName string
 	FilePath  string
 }
+
 type OctoTextField struct {
 	FieldName  string
 	FieldValue string
 }
+
 type OctoPayloadForm struct {
 	ServiceID  string          `json:"serviceID"`
 	TextFields []OctoTextField `json:"textFields"`
@@ -101,15 +106,25 @@ type OctoVendorSwitch struct {
 
 type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
-	BaseURL       string
-	Token         string // Use AccessToken in place of clientID
-	Authorization string // Auth Token
+	BaseURL          string
+	Token            string // Use AccessToken in place of clientID
+	Authorization    string // Auth Token
+	CustomHTTPClient *http.Client
 }
 
 func New(options Options) *OctoClient {
 	baseURL := trimTrailingSlash(options.BaseURL)
+
+	c := options.CustomHTTPClient
+	if c == nil {
+		c = &http.Client{}
+	}
+
+	// Set default otel tracer for the http client
+	traceableClient := getTraceableHttpClient(c)
+
 	return &OctoClient{
-		HTTPClient:    &http.Client{},
+		HTTPClient:    traceableClient,
 		baseURL:       baseURL,
 		token:         options.Token,
 		authorization: options.Authorization,
@@ -123,8 +138,26 @@ func (o *OctoClient) getHttpClient() *http.Client {
 	return wrappedClient
 }
 
+func getTraceableHttpClient(c *http.Client, opts ...otelhttp.Option) *http.Client {
+	if c == nil {
+		return &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport, opts...),
+		}
+	}
+
+	c.Transport = otelhttp.NewTransport(c.Transport, opts...)
+	return c
+}
+
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
 	client := o.getHttpClient()
+
+	if payload.ServiceName != "" {
+		// Set a span name formatter with an "ext_" prefix
+		client = getTraceableHttpClient(client, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
+			return "ext_" + payload.ServiceName
+		}))
+	}
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
