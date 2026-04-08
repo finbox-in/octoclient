@@ -44,7 +44,6 @@ type DynamicHeaders struct {
 
 type OctoPayload struct {
 	ServiceID        string                 `json:"serviceID"`
-	ServiceName      string                 `json:"serviceName"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
 	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
@@ -149,15 +148,17 @@ func getTraceableHttpClient(c *http.Client, opts ...otelhttp.Option) *http.Clien
 	return c
 }
 
+// SetCustomHTTPClient allows a custom http client to override the default client
+// used in ServiceInvoke and ServiceInvokeForm
+func (o *OctoClient) SetCustomHTTPClient(c *http.Client) {
+	if c == nil {
+		return
+	}
+	o.HTTPClient = c
+}
+
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
 	client := o.getHttpClient()
-
-	if payload.ServiceName != "" {
-		// Set a span name formatter with an "ext_" prefix
-		client = getTraceableHttpClient(client, otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
-			return "ext_" + payload.ServiceName
-		}))
-	}
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
