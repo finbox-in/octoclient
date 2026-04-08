@@ -105,28 +105,46 @@ type OctoVendorSwitch struct {
 
 type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
-	BaseURL          string
-	Token            string // Use AccessToken in place of clientID
-	Authorization    string // Auth Token
-	CustomHTTPClient *http.Client
+	BaseURL       string
+	Token         string // Use AccessToken in place of clientID
+	Authorization string // Auth Token
+
+	// Customizable options
+	httpClient *http.Client
 }
 
-func New(options Options) *OctoClient {
-	baseURL := trimTrailingSlash(options.BaseURL)
+type CustomOption interface {
+	apply(*Options)
+}
 
-	c := options.CustomHTTPClient
-	if c == nil {
-		c = &http.Client{}
+type customOptionsFunc func(*Options)
+
+func (o customOptionsFunc) apply(c *Options) {
+	o(c)
+}
+
+// WithHTTPClient overrides the default http client
+// witht the provided client and uses it as-is.
+func WithHTTPClient(c *http.Client) CustomOption {
+	return customOptionsFunc(func(o *Options) {
+		o.httpClient = c
+	})
+}
+
+func New(config Options, opts ...CustomOption) *OctoClient {
+	baseURL := trimTrailingSlash(config.BaseURL)
+	// Set the default http client
+	config.httpClient = getTraceableHttpClient(nil)
+
+	for _, o := range opts {
+		o.apply(&config)
 	}
 
-	// Set default otel tracer for the http client
-	traceableClient := getTraceableHttpClient(c)
-
 	return &OctoClient{
-		HTTPClient:    traceableClient,
+		HTTPClient:    config.httpClient,
 		baseURL:       baseURL,
-		token:         options.Token,
-		authorization: options.Authorization,
+		token:         config.Token,
+		authorization: config.Authorization,
 	}
 }
 
@@ -137,24 +155,15 @@ func (o *OctoClient) getHttpClient() *http.Client {
 	return wrappedClient
 }
 
-func getTraceableHttpClient(c *http.Client, opts ...otelhttp.Option) *http.Client {
+func getTraceableHttpClient(c *http.Client) *http.Client {
 	if c == nil {
 		return &http.Client{
-			Transport: otelhttp.NewTransport(http.DefaultTransport, opts...),
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		}
 	}
 
-	c.Transport = otelhttp.NewTransport(c.Transport, opts...)
+	c.Transport = otelhttp.NewTransport(c.Transport)
 	return c
-}
-
-// SetCustomHTTPClient allows a custom http client to override the default client
-// used in ServiceInvoke and ServiceInvokeForm
-func (o *OctoClient) SetCustomHTTPClient(c *http.Client) {
-	if c == nil {
-		return
-	}
-	o.HTTPClient = c
 }
 
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
