@@ -124,7 +124,7 @@ func (o customOptionsFunc) apply(c *Options) {
 }
 
 // WithHTTPClient overrides the default http client
-// witht the provided client and uses it as-is.
+// with the provided client and uses it as-is.
 func WithHTTPClient(c *http.Client) CustomOption {
 	return customOptionsFunc(func(o *Options) {
 		o.httpClient = c
