@@ -10,6 +10,7 @@ import (
 
 	"github.com/finbox-in/octoclient/servicecontext"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -40,6 +41,7 @@ type DynamicHeaders struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
 type OctoPayload struct {
 	ServiceID        string                 `json:"serviceID"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
@@ -68,10 +70,12 @@ type OctoFileField struct {
 	FieldName string
 	FilePath  string
 }
+
 type OctoTextField struct {
 	FieldName  string
 	FieldValue string
 }
+
 type OctoPayloadForm struct {
 	ServiceID  string          `json:"serviceID"`
 	TextFields []OctoTextField `json:"textFields"`
@@ -104,15 +108,43 @@ type Options struct {
 	BaseURL       string
 	Token         string // Use AccessToken in place of clientID
 	Authorization string // Auth Token
+
+	// Customizable options
+	httpClient *http.Client
 }
 
-func New(options Options) *OctoClient {
-	baseURL := trimTrailingSlash(options.BaseURL)
+type CustomOption interface {
+	apply(*Options)
+}
+
+type customOptionsFunc func(*Options)
+
+func (o customOptionsFunc) apply(c *Options) {
+	o(c)
+}
+
+// WithHTTPClient overrides the default http client
+// with the provided client and uses it as-is.
+func WithHTTPClient(c *http.Client) CustomOption {
+	return customOptionsFunc(func(o *Options) {
+		o.httpClient = c
+	})
+}
+
+func New(config Options, opts ...CustomOption) *OctoClient {
+	baseURL := trimTrailingSlash(config.BaseURL)
+	// Set the default http client
+	config.httpClient = getTraceableHttpClient(nil)
+
+	for _, o := range opts {
+		o.apply(&config)
+	}
+
 	return &OctoClient{
-		HTTPClient:    &http.Client{},
+		HTTPClient:    config.httpClient,
 		baseURL:       baseURL,
-		token:         options.Token,
-		authorization: options.Authorization,
+		token:         config.Token,
+		authorization: config.Authorization,
 	}
 }
 
@@ -121,6 +153,17 @@ func (o *OctoClient) getHttpClient() *http.Client {
 	wrappedClient := servicecontext.WrapClientWithContextInterceptor(&baseClientCopy)
 
 	return wrappedClient
+}
+
+func getTraceableHttpClient(c *http.Client) *http.Client {
+	if c == nil {
+		return &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		}
+	}
+
+	c.Transport = otelhttp.NewTransport(c.Transport)
+	return c
 }
 
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
