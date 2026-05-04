@@ -43,7 +43,8 @@ type DynamicHeaders struct {
 }
 
 type OctoPayload struct {
-	ServiceID        string                 `json:"serviceID"`
+	ServiceID        string                 `json:"serviceID,omitempty"`
+	ServiceCode      string                 `json:"serviceCode,omitempty"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
 	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
@@ -55,7 +56,8 @@ type OctoPayload struct {
 }
 
 type OctoPayloadGeneric struct {
-	ServiceID        string                 `json:"serviceID"`
+	ServiceID        string                 `json:"serviceID,omitempty"`
+	ServiceCode      string                 `json:"serviceCode,omitempty"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
 	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
@@ -77,9 +79,10 @@ type OctoTextField struct {
 }
 
 type OctoPayloadForm struct {
-	ServiceID  string          `json:"serviceID"`
-	TextFields []OctoTextField `json:"textFields"`
-	FileFields []OctoFileField `json:"fileFields"`
+	ServiceID   string          `json:"serviceID,omitempty"`
+	ServiceCode string          `json:"serviceCode,omitempty"`
+	TextFields  []OctoTextField `json:"textFields"`
+	FileFields  []OctoFileField `json:"fileFields"`
 }
 
 type OctoResponse struct {
@@ -218,10 +221,19 @@ func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadF
 	var requestBody bytes.Buffer
 
 	multiPartWriter := multipart.NewWriter(&requestBody)
-	err := multiPartWriter.WriteField("serviceID", payload.ServiceID)
-	if err != nil {
-		return nil, err
+	if payload.ServiceID != "" {
+		err := multiPartWriter.WriteField("serviceID", payload.ServiceID)
+		if err != nil {
+			return nil, err
+		}
 	}
+	if payload.ServiceCode != "" {
+		err := multiPartWriter.WriteField("serviceCode", payload.ServiceCode)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var err error
 
 	err = processTextFields(payload.TextFields, multiPartWriter)
 	if err != nil {
