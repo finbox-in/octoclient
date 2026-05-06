@@ -45,6 +45,7 @@ type DynamicHeaders struct {
 type OctoPayload struct {
 	ServiceID        string                 `json:"serviceID,omitempty"`
 	ServiceCode      string                 `json:"serviceCode,omitempty"`
+	CustomerName     string                 `json:"customerName,omitempty"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
 	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
@@ -58,6 +59,7 @@ type OctoPayload struct {
 type OctoPayloadGeneric struct {
 	ServiceID        string                 `json:"serviceID,omitempty"`
 	ServiceCode      string                 `json:"serviceCode,omitempty"`
+	CustomerName     string                 `json:"customerName,omitempty"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
 	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
@@ -79,10 +81,11 @@ type OctoTextField struct {
 }
 
 type OctoPayloadForm struct {
-	ServiceID   string          `json:"serviceID,omitempty"`
-	ServiceCode string          `json:"serviceCode,omitempty"`
-	TextFields  []OctoTextField `json:"textFields"`
-	FileFields  []OctoFileField `json:"fileFields"`
+	ServiceID    string          `json:"serviceID,omitempty"`
+	ServiceCode  string          `json:"serviceCode,omitempty"`
+	CustomerName string          `json:"customerName,omitempty"`
+	TextFields   []OctoTextField `json:"textFields"`
+	FileFields   []OctoFileField `json:"fileFields"`
 }
 
 type OctoResponse struct {
