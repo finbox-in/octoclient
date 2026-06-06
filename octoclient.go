@@ -284,5 +284,6 @@ func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadF
 	if err != nil {
 		return nil, err
 	}
+	response.HTTPStatusCode = res.StatusCode
 	return &response, nil
 }
