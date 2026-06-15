@@ -219,7 +219,7 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 }
 
 func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadForm) (*OctoResponse, error) {
-	callingUrl := o.baseURL + apiEndpointFile
+	callingUrl := o.baseURL + apiEndpoint
 
 	var requestBody bytes.Buffer
 
@@ -284,5 +284,6 @@ func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadF
 	if err != nil {
 		return nil, err
 	}
+	response.HTTPStatusCode = res.StatusCode
 	return &response, nil
 }
