@@ -3,11 +3,14 @@ package octoclient
 import (
 	"bytes"
 	"context"
+	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 
+	"github.com/finbox-in/octoclient/servicecontext"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -24,41 +27,74 @@ Usage:
   - call the service-invoke using the payload.
   - The other features like pathParams will be included in payload
 */
-type OctoQueryParam struct {
+type QueryParams struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
 
-type OctoHeader struct {
+type URLParams struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
+
+type DynamicHeaders struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type OctoPayload struct {
-	ServiceID      string                 `json:"serviceID"`
-	QueryParams    []OctoQueryParam       `json:"queryParameters"`
-	DynamicHeaders []OctoHeader           `json:"dynamicHeaders"`
-	Data           map[string]interface{} `json:"data"`
-	RequestID      string                 `json:"requestID"` // Acts as unique identifier for each request.
+	ServiceID        string                 `json:"serviceID,omitempty"`
+	ServiceCode      string                 `json:"serviceCode,omitempty"`
+	CustomerName     string                 `json:"customerName,omitempty"`
+	QueryParams      []QueryParams          `json:"queryParameters"`
+	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
+	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
+	Data             map[string]interface{} `json:"data"`
+	RequestID        string                 `json:"requestID"` // Acts as unique identifier for each request.
+	Switch           OctoVendorSwitch       `json:"vendorSwitch"`
+	CallbackURL      string                 `json:"callbackURL"`
+	CallbackMetadata map[string]interface{} `json:"callbackMetadata"`
+}
+
+type OctoPayloadGeneric struct {
+	ServiceID        string                 `json:"serviceID,omitempty"`
+	ServiceCode      string                 `json:"serviceCode,omitempty"`
+	CustomerName     string                 `json:"customerName,omitempty"`
+	QueryParams      []QueryParams          `json:"queryParameters"`
+	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
+	DynamicHeaders   []DynamicHeaders       `json:"dynamicHeaders"`
+	Data             interface{}            `json:"data"`
+	RequestID        string                 `json:"requestID"` // Acts as unique identifier for each request.
+	Switch           OctoVendorSwitch       `json:"vendorSwitch"`
+	CallbackURL      string                 `json:"callbackURL"`
+	CallbackMetadata map[string]interface{} `json:"callbackMetadata"`
 }
 
 type OctoFileField struct {
 	FieldName string
 	FilePath  string
 }
+
 type OctoTextField struct {
 	FieldName  string
 	FieldValue string
 }
+
 type OctoPayloadForm struct {
-	ServiceID  string          `json:"serviceID"`
-	TextFields []OctoTextField `json:"textFields"`
-	FileFields []OctoFileField `json:"fileFields"`
+	ServiceID    string          `json:"serviceID,omitempty"`
+	ServiceCode  string          `json:"serviceCode,omitempty"`
+	CustomerName string          `json:"customerName,omitempty"`
+	TextFields   []OctoTextField `json:"textFields"`
+	FileFields   []OctoFileField `json:"fileFields"`
 }
 
 type OctoResponse struct {
-	Message   string                 `json:"msg"`
-	RequestID uuid.UUID              `json:"requestId"`
-	Data      map[string]interface{} `json:"data"`
+	Message         string                 `json:"msg"`
+	RequestID       uuid.UUID              `json:"requestId"`
+	Data            map[string]interface{} `json:"data"`
+	RequestHeaders  http.Header            `json:"-"`
+	ResponseHeaders http.Header            `json:"-"`
+	HTTPStatusCode  int                    `json:"-"`
 }
 
 type OctoClient struct {
@@ -68,28 +104,76 @@ type OctoClient struct {
 	authorization string
 }
 
+type OctoVendorSwitch struct {
+	Enabled        bool   `json:"enabled"`
+	VendorConfigID string `json:"vendorConfigId"`
+}
+
 type Options struct {
 	// Other options in http.Client will be added here e.g, custom timeout
 	BaseURL       string
 	Token         string // Use AccessToken in place of clientID
 	Authorization string // Auth Token
+
+	// Customizable options
+	httpClient *http.Client
 }
 
-func New(options Options) *OctoClient {
-	baseURL := trimTrailingSlash(options.BaseURL)
+type CustomOption interface {
+	apply(*Options)
+}
+
+type customOptionsFunc func(*Options)
+
+func (o customOptionsFunc) apply(c *Options) {
+	o(c)
+}
+
+// WithHTTPClient overrides the default http client
+// with the provided client and uses it as-is.
+func WithHTTPClient(c *http.Client) CustomOption {
+	return customOptionsFunc(func(o *Options) {
+		o.httpClient = c
+	})
+}
+
+func New(config Options, opts ...CustomOption) *OctoClient {
+	baseURL := trimTrailingSlash(config.BaseURL)
+	// Set the default http client
+	config.httpClient = getTraceableHttpClient(nil)
+
+	for _, o := range opts {
+		o.apply(&config)
+	}
+
 	return &OctoClient{
-		HTTPClient:    &http.Client{},
+		HTTPClient:    config.httpClient,
 		baseURL:       baseURL,
-		token:         options.Token,
-		authorization: options.Authorization,
+		token:         config.Token,
+		authorization: config.Authorization,
 	}
 }
 
-func (o *OctoClient) getHttpClient() http.Client {
-	return *o.HTTPClient
+func (o *OctoClient) getHttpClient() *http.Client {
+	baseClientCopy := *o.HTTPClient
+	wrappedClient := servicecontext.WrapClientWithContextInterceptor(&baseClientCopy)
+
+	return wrappedClient
+}
+
+func getTraceableHttpClient(c *http.Client) *http.Client {
+	if c == nil {
+		return &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		}
+	}
+
+	c.Transport = otelhttp.NewTransport(c.Transport)
+	return c
 }
 
 func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*OctoResponse, error) {
+	client := o.getHttpClient()
 
 	callingUrl := o.baseURL + apiEndpoint
 	var response OctoResponse
@@ -111,13 +195,13 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("Authorization", o.authorization)
 
-	res, err := o.HTTPClient.Do(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -127,19 +211,32 @@ func (o *OctoClient) ServiceInvoke(ctx context.Context, payload OctoPayload) (*O
 		return nil, err
 	}
 
+	response.RequestHeaders = req.Header.Clone()
+	response.ResponseHeaders = res.Header.Clone()
+	response.HTTPStatusCode = res.StatusCode
+
 	return &response, nil
 }
 
 func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadForm) (*OctoResponse, error) {
-	callingUrl := o.baseURL + apiEndpointFile
+	callingUrl := o.baseURL + apiEndpoint
 
 	var requestBody bytes.Buffer
 
 	multiPartWriter := multipart.NewWriter(&requestBody)
-	err := multiPartWriter.WriteField("serviceID", payload.ServiceID)
-	if err != nil {
-		return nil, err
+	if payload.ServiceID != "" {
+		err := multiPartWriter.WriteField("serviceID", payload.ServiceID)
+		if err != nil {
+			return nil, err
+		}
 	}
+	if payload.ServiceCode != "" {
+		err := multiPartWriter.WriteField("serviceCode", payload.ServiceCode)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var err error
 
 	err = processTextFields(payload.TextFields, multiPartWriter)
 	if err != nil {
@@ -187,5 +284,6 @@ func (o *OctoClient) ServiceInvokeForm(ctx context.Context, payload OctoPayloadF
 	if err != nil {
 		return nil, err
 	}
+	response.HTTPStatusCode = res.StatusCode
 	return &response, nil
 }
