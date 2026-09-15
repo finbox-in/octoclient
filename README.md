@@ -44,5 +44,22 @@ fmt.Printf("Message: %s\nRequestID: %s\nData: %v\n",
     response.Message, response.RequestID, response.Data)
 ```
 
+### Handling `NextAction`
+
+A workflow-based service can tell the caller to make a follow-up `ServiceInvoke` call once this response comes back. If `response.NextAction` is non-nil, build and send the next payload with `ToPayload()`:
+
+```go
+if response.NextAction != nil {
+    nextPayload, err := response.NextAction.ToPayload()
+    if err != nil {
+        // Unrecognized NextAction.Type — ignore it, per the forward-compat rule
+        // (don't treat this as a fatal error).
+    } else {
+        nextResponse, err := client.ServiceInvoke(ctx, nextPayload)
+        // ...
+    }
+}
+```
+
 License
 MIT
