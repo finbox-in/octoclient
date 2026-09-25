@@ -3,6 +3,7 @@ package octoclient
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
@@ -45,6 +46,7 @@ type DynamicHeaders struct {
 type OctoPayload struct {
 	ServiceID        string                 `json:"serviceID,omitempty"`
 	ServiceCode      string                 `json:"serviceCode,omitempty"`
+	VendorID         string                 `json:"vendorID,omitempty"`
 	CustomerName     string                 `json:"customerName,omitempty"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
@@ -59,6 +61,7 @@ type OctoPayload struct {
 type OctoPayloadGeneric struct {
 	ServiceID        string                 `json:"serviceID,omitempty"`
 	ServiceCode      string                 `json:"serviceCode,omitempty"`
+	VendorID         string                 `json:"vendorID,omitempty"`
 	CustomerName     string                 `json:"customerName,omitempty"`
 	QueryParams      []QueryParams          `json:"queryParameters"`
 	DynamicURLParams []URLParams            `json:"dynamicURLParams"`
@@ -92,9 +95,47 @@ type OctoResponse struct {
 	Message         string                 `json:"msg"`
 	RequestID       uuid.UUID              `json:"requestId"`
 	Data            map[string]interface{} `json:"data"`
+	NextAction      *NextAction            `json:"nextAction,omitempty"`
 	RequestHeaders  http.Header            `json:"-"`
 	ResponseHeaders http.Header            `json:"-"`
 	HTTPStatusCode  int                    `json:"-"`
+}
+
+// NextActionTypeInvokeService is the only NextAction.Type Octopus produces today.
+const NextActionTypeInvokeService = "invoke-service"
+
+// NextAction mirrors Octopus's `nextAction` response field: when present, it tells
+// the caller what follow-up /service/invoke call is expected next. Nil means no
+// further action is required. See docs/next-action-contract.md in the octopus repo.
+//
+// A caller that sees a Type it doesn't recognize MUST ignore the whole field
+// (treat it as if NextAction were nil), not error out — this keeps the SDK
+// forward-compatible with next-action kinds added to Octopus after this SDK
+// version was released.
+type NextAction struct {
+	Type string `json:"type"`
+
+	// Fields below apply when Type == NextActionTypeInvokeService.
+	ServiceID   string                 `json:"serviceID,omitempty"`
+	ServiceCode string                 `json:"serviceCode,omitempty"`
+	VendorID    string                 `json:"vendorID,omitempty"`
+	Data        map[string]interface{} `json:"data,omitempty"`
+}
+
+// ToPayload builds the OctoPayload for the follow-up ServiceInvoke call this
+// NextAction describes. Returns an error if Type isn't a kind this SDK version
+// knows how to act on — callers should check the error (or Type) rather than
+// assume every NextAction is actionable.
+func (n *NextAction) ToPayload() (OctoPayload, error) {
+	if n.Type != NextActionTypeInvokeService {
+		return OctoPayload{}, fmt.Errorf("octoclient: unrecognized nextAction type %q", n.Type)
+	}
+	return OctoPayload{
+		ServiceID:   n.ServiceID,
+		ServiceCode: n.ServiceCode,
+		VendorID:    n.VendorID,
+		Data:        n.Data,
+	}, nil
 }
 
 type OctoClient struct {
